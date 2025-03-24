@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    #oyun-alani {
+      position: relative;
+      left: 10.75%;
+      width: 1190px;
+      height: 680px;
+      border: 1px solid black;
+      background-image: url("Map.png");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      overflow: hidden;
+    }
+  
+    #player {
+      position: absolute;
+      width: 50px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s;
+    }
+  
+    #player img {
+      margin-left: 20px;
+      margin-top: 15px;
+      width: 150px;
+      height: 140px;
+      transition: transform;
+    }
+  
+    #bullet-count {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 10px;
+    }
+  
+    .bullet-icon {
+      margin-top: 27px;
+      margin-left: 10.5px;
+      width: 20px;
+      height: 5px;
+      background: linear-gradient(90deg, rgba(255,0,0,1) 0%, rgba(255,0,0,1) 50%, rgba(255,0,0,0.7) 100%);
+      border-radius: 5px;
+      box-shadow: 0 0 5px 2px rgba(255, 0, 0, 0.7);
+      display: inline-block; /* Görünürlüğü sağlar */
+    }
+  
+    .bullet {
+      position: absolute;
+      height: 15px;
+      background: linear-gradient(90deg, rgba(255,0,0,0.8) 0%, rgba(255,0,0,1) 50%, rgba(255,0,0,0.8) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7);
+    }
+  
+    .enemy {
+      position: absolute;
+      width: 60px;
+      height: 45px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  
+    .enemy img {
+      margin-left: 65px;
+      width: 150px;
+      height: 60px;
+    }
+  
+    #health-bar-container {
+      position: absolute;
+      bottom: 45px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 33%;
+      height: 20px;
+      border-radius: 10px;
+    }
+  
+    #health-bar {
+      width: 100%;
+      height: 100%;
+      background-color: green;
+      border-radius: 8px;
+    }
+
+    #sayac {
+      position: absolute;
+      top: 25px;
+      right: 18px;
+      color: white;
+      font-weight: bold;
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+
+  </style>
+  
+</head>
+
+<body>
+  <div id="oyun-alani">
+    <div id="player"><img src="Octopus.png" alt="Player"></div>
+    <div id="bullet-count">
+      <div class="bullet-icon"></div>
+      <div class="bullet-icon"></div>
+      <div class="bullet-icon"></div>
+    </div>
+    <div id="sayac">Mermiler: 0</div>
+  </div>  
+   <div id="health-bar-container"> 
+    <div id="health-bar"></div> 
+  </div>
+
+  <script>
+    const oyunAlani = document.getElementById('oyun-alani');
+    const player = document.getElementById('player');
+    const playerImg = player.querySelector('img');
+    const bullets = [];
+    const enemies = [];
+    const bulletIcons = document.querySelectorAll('.bullet-icon');
+    const sayac = document.getElementById('sayac');
+
+
+let playerX = 60;
+let playerY = 300;
+const playerSpeed = 2;
+let direction = 'right';
+
+let moveUp = false;
+let moveDown = false;
+let moveLeft = false;
+let moveRight = false;
+
+let isFiring = false;
+let health = 99;
+let remainingBullets = 3; // Başlangıçta 3 mermi var
+let isInvincible = false; // Karakterin hasar almaz durumda olup olmadığını kontrol eden değişken
+let firedBullets = 0;
+
+document.addEventListener('keydown', function (event) {
+  const key = event.key;
+
+  if (key === 'ArrowUp') {
+    moveUp = true;
+  } else if (key === 'ArrowDown') {
+    moveDown = true;
+  } else if (key === 'ArrowLeft') {
+    moveLeft = true;
+    direction = 'left';
+    playerImg.style.transform = 'scaleX(-1)';
+  } else if (key === 'ArrowRight') {
+    moveRight = true;
+    direction = 'right';
+    playerImg.style.transform = 'scaleX(1)';
+  } else if (key === ' ' && (direction === 'right' || direction === 'left')) {
+    fireBullet();
+  }
+});
+
+document.addEventListener('keyup', function (event) {
+  const key = event.key;
+
+  if (key === 'ArrowUp') {
+    moveUp = false;
+  } else if (key === 'ArrowDown') {
+    moveDown = false;
+  } else if (key === 'ArrowLeft') {
+    moveLeft = false;
+  } else if (key === 'ArrowRight') {
+    moveRight = false;
+  }
+});
+
+
+
+function updatePlayerMovement() {
+  if (isFiring) return;
+
+  if (moveLeft && playerX > 60) {
+    playerX -= playerSpeed;
+  } else if (moveRight && playerX < 1090) {
+    playerX += playerSpeed;
+  }
+
+  if (moveUp && playerY > 100) {
+    playerY -= playerSpeed;
+  } else if (moveDown && playerY < 480) {
+    playerY += playerSpeed;
+  }
+
+  player.style.top = playerY + 'px';
+  player.style.left = playerX + 'px';
+}
+
+setInterval(function () {
+  updatePlayerMovement();
+}, 10);
+
+ 
+
+function fireBullet() {
+  if (isFiring || remainingBullets <= 0) return;
+
+  isFiring = true;
+  remainingBullets--;
+  firedBullets++; // Mermi sayısını artır
+  updateBulletCounter(); // Sayaç güncelle
+
+  updateBulletIcons();
+
+  const bullet = document.createElement('div');
+  bullet.className = 'bullet';
+
+  if (direction === 'right') {
+    bullet.style.top = playerY + 20 + 'px';
+    bullet.style.left = playerX + 47 + 'px';
+  } else if (direction === 'left') {
+    bullet.style.top = playerY + 20 + 'px';
+    bullet.style.left = (playerX - 10) + 'px';
+  }
+
+  bullet.style.width = '0px';
+
+  oyunAlani.appendChild(bullet);
+  bullets.push(bullet);
+
+  let currentWidth = 0;
+  const targetWidth = (direction === 'right') ? 1190 - (playerX + 50) : playerX + 10;
+
+  const bulletInterval = setInterval(() => {
+    if (direction === 'right') {
+      currentWidth += 20;
+      bullet.style.width = currentWidth + 'px';
+    } else if (direction === 'left') {
+      currentWidth += 20;
+      bullet.style.width = currentWidth + 'px';
+      bullet.style.left = (playerX - currentWidth + 25) + 'px';
+    }
+
+    if ((direction === 'right' && currentWidth >= targetWidth) || (direction === 'left' && currentWidth >= targetWidth)) {
+      clearInterval(bulletInterval);
+      setTimeout(() => {
+        oyunAlani.removeChild(bullet);
+        const bulletIndex = bullets.indexOf(bullet);
+        bullets.splice(bulletIndex, 1);
+        isFiring = false;
+
+        if (remainingBullets >= 0 && enemies.length === 0) {
+          setTimeout(() => {
+            alert('Oyun Bitti! Tebrikler\n'+ firedBullets + ' Mermi ile Oyunu Kazandınız');
+            window.location.reload();
+          }, 1000); // 1 saniye gecikme
+        } else if (remainingBullets === 0) {
+          addEnemies(5); // 5 düşman spawn olacak
+          resetBullets();
+        }
+      }, 100);
+    }
+
+    for (let i = 0; i < enemies.length; i++) {
+      const enemy = enemies[i];
+      if (bullet.offsetTop <= enemy.offsetTop + enemy.offsetHeight &&
+          bullet.offsetTop + bullet.offsetHeight >= enemy.offsetTop &&
+          bullet.offsetLeft <= enemy.offsetLeft + enemy.offsetWidth &&
+          bullet.offsetLeft + bullet.offsetWidth >= enemy.offsetLeft) {
+        oyunAlani.removeChild(enemy);
+        const enemyIndex = enemies.indexOf(enemy);
+        enemies.splice(enemyIndex, 1);
+      }
+    }
+  }, 10);
+}
+
+function updateBulletCounter() {
+  sayac.textContent = `Mermiler: ${firedBullets}`;
+}
+
+
+
+
+function updateBulletIcons() {
+  bulletIcons.forEach((icon, index) => {
+    if (index < remainingBullets) {
+      icon.style.display = 'inline';
+    } else {
+      icon.style.display = 'none';
+    }
+  });
+}
+
+function updateHealthBar() {
+  const healthBar = document.getElementById('health-bar');
+  healthBar.style.width = health + '%';
+
+  if (health > 75) {
+    healthBar.style.backgroundColor = 'green';
+  } else if (health > 50) {
+    healthBar.style.backgroundColor = 'yellow';
+  } else {
+    healthBar.style.backgroundColor = 'red';
+  }
+}
+
+function reduceHealth(amount) {
+  health -= amount;
+  if (health < 0) health = 0;
+  updateHealthBar();
+  
+}
+
+function updateCanlar() {
+  if (isInvincible) return; // Hasar almaz durumda ise geri dön
+  reduceHealth(33);
+
+  if (health <= 0) {
+    alert('Oyun bitti! Tüm canlar tükendi.\nYeniden başlamak için space tuşuna bas');
+    window.location.reload();
+  }
+  isInvincible = true;
+  setTimeout(() => { isInvincible = false; // Belirli bir süre sonra hasar almaz durumu devre dışı bırak 
+  }, 2000);
+}
+
+function damage() {
+  let opacity = 1;
+  const blinkInterval = setInterval(() => {
+    opacity = opacity === 1 ? 0.2 : 1;
+    player.style.opacity = opacity;
+  }, 200);
+
+  setTimeout(() => {
+    clearInterval(blinkInterval);
+    player.style.opacity = 1;
+  }, 1300);
+}
+
+function createEnemy(count = 6) {
+  const enemyPositions = [];
+
+  for (let i = 0; i < count; i++) {
+    let enemyX, enemyY, isOverlapping;
+
+    do {
+      enemyX = Math.random() * (1190 - 130);
+      enemyY = Math.random() * (680 - 60);
+
+      if (enemyY < 100) {
+        enemyY = 100;
+      } else if (enemyY > 480) {
+        enemyY = 480;
+      }
+
+      isOverlapping = enemyPositions.some(pos => {
+        return (
+          Math.abs(pos.x - enemyX) < 130 && Math.abs(pos.y - enemyY) < 60
+        );
+      });
+    } while (
+      (Math.abs(enemyX - playerX) < 300 && Math.abs(enemyY - playerY) < 300) ||
+      isOverlapping
+    );
+
+    enemyPositions.push({ x: enemyX, y: enemyY });
+
+    const enemy = document.createElement('div');
+    const enemyImg = document.createElement('img');
+    enemyImg.src = 'Meteor.png';
+    enemy.appendChild(enemyImg);
+    enemy.className = 'enemy';
+    enemy.style.left = `${enemyX}px`;
+    enemy.style.top = `${enemyY}px`;
+    oyunAlani.appendChild(enemy);
+    enemies.push(enemy);
+
+    const enemyInterval = setInterval(function () {
+      enemy.style.left = `${parseInt(enemy.style.left) - 1}px`;
+
+      if (parseInt(enemy.style.left) < -130) {
+        enemy.style.left = '1190px';
+      }
+
+      checkCollision(enemy);
+    }, 5);
+  }
+}
+
+
+function checkCollision(enemy) {
+  const playerRect = player.getBoundingClientRect();
+  const enemyRect = enemy.getBoundingClientRect();
+
+  if (playerRect.left < enemyRect.left + enemyRect.width &&
+    playerRect.left + playerRect.width > enemyRect.left &&
+    playerRect.top < enemyRect.top + enemyRect.height &&
+    playerRect.top + playerRect.height > enemyRect.top) {
+    updateCanlar();
+    damage(); // Karakter hasar alıyor
+  }
+}
+
+
+function addEnemies(count) {
+  createEnemy(count);
+}
+
+function resetBullets() {
+  remainingBullets = 3;
+  updateBulletIcons();
+}
+
+createEnemy();
+
+setInterval(function () {
+}, 10);
+</script>
+</body>
+</html>
